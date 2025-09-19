@@ -1,30 +1,16 @@
-use std::str::FromStr;
-
 use bitcoin::hashes::Hash;
-use bitcoin::key::{Keypair};
 use bitcoin::locktime::absolute;
-use bitcoin::secp256k1::{rand, Message, Secp256k1, SecretKey, Signing};
+use bitcoin::secp256k1::{Message, Secp256k1};
 use bitcoin::sighash::{EcdsaSighashType, SighashCache};
 use bitcoin::{
-    transaction, Address, Amount, Network, OutPoint, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
+    transaction, OutPoint, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
     Txid, WPubkeyHash, Witness,
 };
 
-const DUMMY_UTXO_AMOUNT: Amount = Amount::from_sat(20_000_000);
-const SPEND_AMOUNT: Amount = Amount::from_sat(5_000_000);
-const CHANGE_AMOUNT: Amount = Amount::from_sat(14_999_000);
-
-fn senders_keys<C: Signing>(secp: &Secp256k1<C>) -> Keypair {
-    let sk = SecretKey::new(&mut rand::thread_rng());
-    Keypair::from_secret_key(secp, &sk)
-}
-
-fn receivers_address() -> Address {
-    Address::from_str("bc1q7cyrfmck2ffu2ud3rn5l5a8yv6f0chkp0zpemf")
-        .expect("a valid address")
-        .require_network(Network::Bitcoin)
-        .expect("valid address for mainnet")
-}
+use super::common::{
+    ADDRESS_OUT_V0, DUMMY_UTXO_AMOUNT, SPEND_AMOUNT, CHANGE_AMOUNT,
+    senders_keys, receivers_address,
+};
 
 fn dummy_unspent_transaction_output(wpkh: &WPubkeyHash) -> (OutPoint, TxOut) {
     let script_pubkey = ScriptBuf::new_p2wpkh(wpkh);
@@ -44,12 +30,11 @@ pub fn segwit_v0() {
     let secp = Secp256k1::new();
 
     let keypair = senders_keys(&secp);
-    let address = receivers_address();
     let pk = PublicKey::new(keypair.public_key());
     let wpkh = pk.wpubkey_hash().expect("key is compressed");
     let sk = keypair.secret_key();
-
     let (dummy_out_point, dummy_utxo) = dummy_unspent_transaction_output(&wpkh);
+    let address = receivers_address(ADDRESS_OUT_V0);
 
     let input = TxIn {
         previous_output: dummy_out_point,
