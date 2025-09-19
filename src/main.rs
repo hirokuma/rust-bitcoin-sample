@@ -1,11 +1,12 @@
 use std::str::FromStr;
 
 use bitcoin::hashes::Hash;
+use bitcoin::key::{Keypair};
 use bitcoin::locktime::absolute;
 use bitcoin::secp256k1::{rand, Message, Secp256k1, SecretKey, Signing};
 use bitcoin::sighash::{EcdsaSighashType, SighashCache};
 use bitcoin::{
-    transaction, Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
+    transaction, Address, Amount, Network, OutPoint, PublicKey, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
     Txid, WPubkeyHash, Witness,
 };
 
@@ -13,12 +14,9 @@ const DUMMY_UTXO_AMOUNT: Amount = Amount::from_sat(20_000_000);
 const SPEND_AMOUNT: Amount = Amount::from_sat(5_000_000);
 const CHANGE_AMOUNT: Amount = Amount::from_sat(14_999_000);
 
-fn senders_keys<C: Signing>(secp: &Secp256k1<C>) -> (SecretKey, WPubkeyHash) {
+fn senders_keys<C: Signing>(secp: &Secp256k1<C>) -> Keypair {
     let sk = SecretKey::new(&mut rand::thread_rng());
-    let pk = bitcoin::PublicKey::new(sk.public_key(secp));
-    let wpkh = pk.wpubkey_hash().expect("key is compressed");
-
-    (sk, wpkh)
+    Keypair::from_secret_key(secp, &sk)
 }
 
 fn receivers_address() -> Address {
@@ -30,13 +28,14 @@ fn receivers_address() -> Address {
 
 fn dummy_unspent_transaction_output(wpkh: &WPubkeyHash) -> (OutPoint, TxOut) {
     let script_pubkey = ScriptBuf::new_p2wpkh(wpkh);
-
     let out_point = OutPoint {
         txid: Txid::all_zeros(),
         vout: 0,
     };
-
-    let utxo = TxOut { value: DUMMY_UTXO_AMOUNT, script_pubkey };
+    let utxo = TxOut {
+        value: DUMMY_UTXO_AMOUNT,
+        script_pubkey,
+    };
 
     (out_point, utxo)
 }
@@ -44,8 +43,12 @@ fn dummy_unspent_transaction_output(wpkh: &WPubkeyHash) -> (OutPoint, TxOut) {
 fn main() {
     let secp = Secp256k1::new();
 
-    let (sk, wpkh) = senders_keys(&secp);
+    let keypair = senders_keys(&secp);
     let address = receivers_address();
+    let pk = PublicKey::new(keypair.public_key());
+    let wpkh = pk.wpubkey_hash().expect("key is compressed");
+    let sk = keypair.secret_key();
+
     let (dummy_out_point, dummy_utxo) = dummy_unspent_transaction_output(&wpkh);
 
     let input = TxIn {
@@ -84,10 +87,8 @@ fn main() {
 
     let msg = Message::from(sighash);
     let signature = secp.sign_ecdsa(&msg, &sk);
-
     let signature = bitcoin::ecdsa::Signature { signature, sighash_type };
-    let pk = sk.public_key(&secp);
-    *sighasher.witness_mut(input_index).unwrap() = Witness::p2wpkh(&signature, &pk);
+    *sighasher.witness_mut(input_index).unwrap() = Witness::p2wpkh(&signature, &pk.inner);
 
     let tx = sighasher.into_transaction();
     println!("{:#?}", tx);
