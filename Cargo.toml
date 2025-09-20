@@ -1,5 +1,5 @@
 [package]
-name = "segwit_v0"
+name = "rust-bitcoin-sample"
 version = "0.1.0"
 edition = "2024"
 
