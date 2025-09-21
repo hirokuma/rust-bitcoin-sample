@@ -1,8 +1,5 @@
-mod segwit;
-
-use segwit::{v0, v1};
+use rust_bitcoin_sample::run_segwit_examples;
 
 fn main() {
-    v0::segwit_v0();
-    v1::segwit_v1();
+    run_segwit_examples();
 }

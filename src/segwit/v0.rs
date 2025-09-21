@@ -26,7 +26,7 @@ fn dummy_unspent_transaction_output(wpkh: &WPubkeyHash) -> (OutPoint, TxOut) {
     (out_point, utxo)
 }
 
-pub fn segwit_v0() {
+pub fn segwit_v0() -> Transaction {
     let secp = Secp256k1::new();
 
     let keypair = senders_keys(&secp);
@@ -75,6 +75,5 @@ pub fn segwit_v0() {
     let signature = bitcoin::ecdsa::Signature { signature, sighash_type };
     *sighasher.witness_mut(input_index).unwrap() = Witness::p2wpkh(&signature, &pk.inner);
 
-    let tx = sighasher.into_transaction();
-    println!("{:#?}", tx);
+    sighasher.into_transaction().clone()
 }

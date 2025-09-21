@@ -30,7 +30,7 @@ fn dummy_unspent_transaction_output<C: Verification>(
     (out_point, utxo)
 }
 
-pub fn segwit_v1() {
+pub fn segwit_v1() -> Transaction {
     let secp = Secp256k1::new();
 
     let keypair = senders_keys(&secp);
@@ -75,6 +75,5 @@ pub fn segwit_v1() {
     let signature = bitcoin::taproot::Signature { signature, sighash_type };
     sighasher.witness_mut(input_index).unwrap().push(&signature.to_vec());
 
-    let tx = sighasher.into_transaction();
-    println!("{:#?}", tx);
+    sighasher.into_transaction().clone()
 }
