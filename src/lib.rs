@@ -6,6 +6,9 @@ pub fn run_segwit_examples() {
 
     let tx = segwit::v1::segwit_v1();
     println!("{:#?}", tx);
+
+    let tx = segwit::v1psbt::segwit_v1();
+    println!("{:#?}", tx);
 }
 
 #[cfg(test)]
