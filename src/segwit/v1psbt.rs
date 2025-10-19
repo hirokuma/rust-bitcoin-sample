@@ -70,6 +70,7 @@ pub fn segwit_v1() -> Transaction {
     xonly_key_map.insert(internal_key, priv_key);
     let key_source = (Fingerprint::default(), DerivationPath::default());
     let mut tap_key_origins: BTreeMap<XOnlyPublicKey, (Vec<bitcoin::TapLeafHash>, (Fingerprint, DerivationPath))> = std::collections::BTreeMap::new();
+    // No tap script tree for this example; use an empty TapLeafHash vec as a placeholder.
     tap_key_origins.insert(internal_key, (vec![], key_source));
     psbt.inputs[0].tap_key_origins = tap_key_origins;
     psbt.inputs[0].witness_utxo = Some(dummy_utxos[0].1.clone());
@@ -79,8 +80,12 @@ pub fn segwit_v1() -> Transaction {
     psbt.sign(&xonly_key_map, &secp).expect("valid signature");
 
     psbt.inputs.iter_mut().for_each(|input| {
-        let script_witness = Witness::p2tr_key_spend(&input.tap_key_sig.unwrap());
-        input.final_script_witness = Some(script_witness);
+        // If a taproot key signature was produced, use it to finalize the witness.
+        // Otherwise leave final_script_witness as None (caller may want to handle this).
+        if let Some(sig) = input.tap_key_sig.as_ref() {
+            let script_witness = Witness::p2tr_key_spend(sig);
+            input.final_script_witness = Some(script_witness);
+        }
 
         // Clear all the data fields as per the spec.
         input.partial_sigs = BTreeMap::new();
@@ -90,5 +95,5 @@ pub fn segwit_v1() -> Transaction {
         input.bip32_derivation = BTreeMap::new();
     });
 
-    psbt.extract_tx().unwrap()
+    psbt.extract_tx().expect("Failed to extract transaction from finalized PSBT")
 }
